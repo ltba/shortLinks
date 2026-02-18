@@ -1,8 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>跳转中...</title>
+    <title>Redirecting...</title>
+
+    <!-- Optional fallback if JS fails -->
+    <noscript>
+        <meta http-equiv="refresh" content="5;url=/" />
+    </noscript>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -39,43 +45,60 @@
 </head>
 <body>
     <div class="container">
-        <p>正在跳转，请稍候...</p>
+        <p>Redirecting, please wait...</p>
     </div>
+
     <script>
-        (async function() {
-            const container = document.querySelector('.container');
-            // 获取当前路径，例如 your.github.io/short -> /short
-            const path = window.location.pathname;
+(async function () {
+    const container = document.querySelector('.container');
 
-            // 如果是根路径或首页，则不进行跳转
-            if (path === '/' || path.toLowerCase() === '/index.html') {
-                container.innerHTML = '<p>欢迎使用短链接服务。请直接访问您的短链接地址。</p>';
-                return;
-            }
+    // Detect repo base path (GitHub Pages)
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const basePath = pathParts.length > 0 ? '/' + pathParts[0] : '';
 
-            try {
-                // 获取链接映射数据
-                const response = await fetch('./data/links.json');
-                if (!response.ok) {
-                    throw new Error('无法加载链接数据。');
-                }
-                const links = await response.json();
+    // Normalize short path
+    let shortPath = '/' + pathParts.slice(1).join('/').toLowerCase();
+    if (shortPath.endsWith('/')) shortPath = shortPath.slice(0, -1);
 
-                // 查找目标 URL
-                const targetUrl = links[path];
+    // Homepage
+    if (!shortPath || shortPath === '/') {
+        container.innerHTML =
+            '<p>Welcome to the short link service.<br>Please visit a valid short URL.</p>';
+        return;
+    }
 
-                if (targetUrl) {
-                    // 如果找到，立即跳转
-                    window.location.replace(targetUrl);
-                } else {
-                    // 如果未找到，显示错误信息
-                    container.innerHTML = `<p>错误：短链接 "<strong>${path}</strong>" 未找到。</p><p><a href="/">返回首页</a></p>`;
-                }
-            } catch (error) {
-                console.error('跳转失败:', error);
-                container.innerHTML = '<p>跳转过程中发生错误，请检查后台数据或联系管理员。</p>';
-            }
-        })();
-    </script>
+    try {
+        const response = await fetch(
+            `${window.location.origin}${basePath}/data/links.json`,
+            { cache: 'no-store' }
+        );
+
+        if (!response.ok) {
+            throw new Error('links.json not found');
+        }
+
+        const links = await response.json();
+        const targetUrl = links[shortPath];
+
+        if (targetUrl && /^https?:\/\//i.test(targetUrl)) {
+            window.location.replace(targetUrl);
+        } else {
+            container.innerHTML = `
+                <p>
+                    Error: Short link
+                    "<strong>${shortPath}</strong>" not found.
+                </p>
+                <p><a href="${basePath}/">Return to homepage</a></p>
+            `;
+        }
+
+    } catch (error) {
+        console.error(error);
+        container.innerHTML =
+            '<p>An error occurred during redirection.<br>Please check the link data or contact the administrator.</p>';
+    }
+})();
+</script>
+
 </body>
 </html>
